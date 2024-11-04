@@ -90,11 +90,8 @@ str(drivebc_data)
 head(drivebc_data)
 ```
 
-
-
-
-
 # Time/Event Bipartite Graphs
+
 ```{r}
 create_bipartite_graph <- function(year_data, year) {
   area_names <- unique(year_data$AREA_NAME)
