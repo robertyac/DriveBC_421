@@ -20,7 +20,7 @@ suppressPackageStartupMessages(library(igraph))
 ```
 
 ```{r cache=TRUE}
-drivebc_data_2023 <- read_csv("../data/drivebc_events_hist_2023.csv")
+drivebc_data_2023 <- read_csv("../data/drivebceventshist2023.csv")
 head(drivebc_data_2023)
 
 colnames(drivebc_data_2023)
