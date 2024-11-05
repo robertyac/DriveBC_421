@@ -1,0 +1,64 @@
+---
+title: "Drive BC Network Analysis"
+author:
+  - name: "Robert Yacovelli"
+format:
+  html:
+    toc: true
+    embed-resources: true
+    df-print: paged
+editor: visual
+---
+
+# Data Loading and Initial Cleaning
+
+```{r}
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(readr))
+suppressPackageStartupMessages(library(tidyr))
+suppressPackageStartupMessages(library(igraph))
+suppressPackageStartupMessages(library(lubridate))
+suppressPackageStartupMessages(library(stringr))
+```
+
+```{r}
+# List and filter files
+data_files <- list.files(path = "../data/", 
+                        pattern = "drivebceventshist.*\\.csv",
+                        full.names = TRUE)
+
+data_files <- data_files[grep("(2018|2019|2020|2021|2022|2023)", data_files)]
+
+# Define column types
+col_types <- cols(
+  EVENT_TYPE = col_character(),
+  EVENT_SUBTYPE = col_character(),
+  SEVERITY = col_character(),
+  CREATED = col_character(),  # Force character type
+  AREA_NAME = col_character(),
+  HEAD_LATITUDE = col_double(),
+  HEAD_LONGITUDE = col_double(),
+  ROAD_NAME = col_character()
+)
+
+# Read and combine with consistent types
+road_data <- bind_rows(
+  lapply(data_files, function(file) {
+    read_csv(file, col_types = col_types) %>%
+      select(
+        EVENT_TYPE, 
+        EVENT_SUBTYPE, 
+        SEVERITY, 
+        CREATED, 
+        AREA_NAME, 
+        HEAD_LATITUDE, 
+        HEAD_LONGITUDE, 
+        ROAD_NAME
+      )
+  })
+) %>%
+  mutate(CREATED = as.Date(CREATED))
+
+# Display first few rows
+head(road_data)
+```
