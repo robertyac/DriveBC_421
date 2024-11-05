@@ -1,0 +1,166 @@
+---
+title: "Drive BC Network Analysis"
+author:
+  - name: "Robert Yacovelli"
+format:
+  html:
+    toc: true
+    embed-resources: true
+    df-print: paged
+editor: visual
+---
+
+
+
+# Data Loading and Initial Cleaning
+
+
+
+```{r}
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(readr))
+suppressPackageStartupMessages(library(tidyr))
+suppressPackageStartupMessages(library(igraph))
+suppressPackageStartupMessages(library(lubridate))
+suppressPackageStartupMessages(library(stringr))
+```
+
+```{r}
+# Function to standardize attribute names and handle event type variations
+standardize_name <- function(x) {
+  x <- x %>%
+    tolower() %>%
+    gsub("_", "", .) %>%
+    gsub(" ", "", .) %>%
+    trimws()
+}
+
+# Function to load and clean data for a given year
+load_and_clean_data <- function(file_path) {
+  data <- read_csv(file_path, show_col_types = FALSE)
+  
+  # Check if this is pre-2018 or post-2018 format
+  if("cause" %in% names(data)) {
+    # Pre-2018 format
+    data <- data %>%
+      rename(
+        EVENT_TYPE = type,
+        AREA_NAME = district,
+        SEVERITY = severity,
+        START_DATETIME = localupdatetime
+      )
+  }
+  
+  # Standardize values and convert types
+  data <- data %>%
+    mutate(
+      EVENT_TYPE = standardize_name(EVENT_TYPE),
+      AREA_NAME = standardize_name(AREA_NAME),
+      SEVERITY = standardize_name(SEVERITY),
+      START_DATETIME = parse_date_time(START_DATETIME,
+                                       orders = c("ymd HMS", "mdy HMS", "dmy HMS",
+                                                  "ymd HM", "mdy HM", "dmy HM",
+                                                  "ymd", "mdy", "dmy"))
+    ) %>%
+    filter(!is.na(EVENT_TYPE)) %>%        # Remove NA event types
+    filter(!EVENT_TYPE %in% c("planned"))  # Additional removal if needed
+  
+  # Select only the columns we need
+  data <- data %>%
+    select(EVENT_TYPE, AREA_NAME, SEVERITY, START_DATETIME) %>%
+    drop_na(START_DATETIME)
+  
+  return(data)
+}
+```
+
+```{r cache=TRUE}
+# all the years apply the cleaning functions
+data_files <- list.files("../data", pattern = "drivebceventshist.*\\.csv", full.names = TRUE)
+all_data <- lapply(data_files, load_and_clean_data)
+
+# Combine all data into a single dataframe
+drivebc_data <- bind_rows(all_data)
+
+# Convert columns to appropriate data types
+drivebc_data <- drivebc_data %>%
+  mutate(
+    EVENT_TYPE = as.factor(EVENT_TYPE),
+    AREA_NAME = as.factor(AREA_NAME),
+    SEVERITY = as.factor(SEVERITY)
+  )
+
+str(drivebc_data)
+head(drivebc_data)
+```
+
+
+
+# Time/Event Bipartite Graphs
+
+
+
+```{r}
+create_bipartite_graph <- function(year_data, year) {
+  area_names <- unique(year_data$AREA_NAME)
+  active_events <- unique(year_data$EVENT_TYPE)
+  
+  # areas and events as nodes
+  nodes <- data.frame(
+    name = c(as.character(area_names), as.character(active_events)),
+    type = c(rep(TRUE, length(area_names)), 
+             rep(FALSE, length(active_events)))
+  )
+  
+  # edge exists if a particular type of event occurred in a particular area
+  edges <- year_data %>%
+    select(AREA_NAME, EVENT_TYPE) %>%
+    distinct()
+
+  g <- graph_from_data_frame(d = edges, vertices = nodes, directed = FALSE)
+  
+  # vertex attributes
+  V(g)$color <- ifelse(V(g)$type, "lightblue", "lightgreen")
+  V(g)$shape <- ifelse(V(g)$type, "circle", "square")
+  V(g)$size <- 4 
+  V(g)$label.cex <- 0.7
+  V(g)$label.dist <- .75
+  V(g)$label.degree <- ifelse(seq_along(V(g)) %% 2 == 0, pi/2, -pi/2)
+  
+  return(g)
+}
+```
+
+```{r}
+#| label: fig-graphs-by-year
+#| fig-width: 10
+#| fig-height: 10
+
+# graphs for each year
+years <- 2006:2023
+
+for(year in years) {
+  year_data <- drivebc_data %>%
+    filter(year(START_DATETIME) == year)
+  
+  if(nrow(year_data) == 0) {
+    plot.new()
+    title(main = paste("No Data Available for", year))
+    next
+  }
+  
+  g <- create_bipartite_graph(year_data, year)
+
+  plot(g, 
+      layout = layout_as_bipartite,
+      vertex.label = V(g)$name,
+      vertex.color = V(g)$color,
+      vertex.shape = V(g)$shape,
+      vertex.size = V(g)$size,
+      vertex.label.cex = V(g)$label.cex,
+      vertex.label.dist = V(g)$label.dist,
+      vertex.label.degree = V(g)$label.degree,
+      edge.width = 0.3,
+      main = paste("BC Road Events", year)) 
+}
+```
