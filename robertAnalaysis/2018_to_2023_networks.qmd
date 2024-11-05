@@ -22,7 +22,6 @@ suppressPackageStartupMessages(library(stringr))
 ```
 
 ```{r}
-# List and filter files
 data_files <- list.files(path = "../data/", 
                         pattern = "drivebceventshist.*\\.csv",
                         full.names = TRUE)
@@ -34,7 +33,7 @@ col_types <- cols(
   EVENT_TYPE = col_character(),
   EVENT_SUBTYPE = col_character(),
   SEVERITY = col_character(),
-  CREATED = col_character(),  # Force character type
+  CREATED = col_character(), 
   AREA_NAME = col_character(),
   HEAD_LATITUDE = col_double(),
   HEAD_LONGITUDE = col_double(),
@@ -58,7 +57,9 @@ road_data <- bind_rows(
   })
 ) %>%
   mutate(CREATED = as.Date(CREATED))
+```
 
-# Display first few rows
+```{r}
 head(road_data)
+nrow(road_data)
 ```
