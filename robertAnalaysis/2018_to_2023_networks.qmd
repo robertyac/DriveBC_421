@@ -21,6 +21,7 @@ suppressPackageStartupMessages(library(caret))
 suppressPackageStartupMessages(library(stringr))
 suppressPackageStartupMessages(library(lubridate))
 suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(tidytext))
 ```
 
 ```{r cache=TRUE}
@@ -55,10 +56,10 @@ road_data <- bind_rows(
         HEAD_LATITUDE, 
         HEAD_LONGITUDE, 
         ROAD_NAME
-      )
+      ) %>%
+  mutate(CREATED = as.POSIXct(CREATED))
   })
-) %>%
-  mutate(CREATED = as.Date(CREATED))
+)
 ```
 
 ```{r}
@@ -67,6 +68,7 @@ nrow(road_data)
 ```
 
 # Bipartite network for incidents and time factors
+
 ```{r cache=TRUE}
 #| label: fig-graph1
 #| fig-width: 13
@@ -75,11 +77,12 @@ nrow(road_data)
 create_incident_time_network <- function(data_sample) {
   incident_time_edges <- data_sample %>%
     mutate(
+      hour_created = hour(as.POSIXct(CREATED)),
       time_of_day = case_when(
-        hour(CREATED) >= 6 & hour(CREATED) < 12 ~ "Morning",
-        hour(CREATED) >= 12 & hour(CREATED) < 18 ~ "Afternoon",
-        hour(CREATED) >= 18 & hour(CREATED) < 24 ~ "Evening",
-        TRUE ~ "Night"
+        hour_created >= 6 & hour_created < 12 ~ "Morning",
+        hour_created >= 12 & hour_created < 18 ~ "Afternoon",
+        hour_created >= 18 & hour_created < 24 ~ "Evening",
+        hour_created >= 0 & hour_created < 6 ~ "Night"
       ),
       day_of_week = weekdays(CREATED),
       season = case_when(
@@ -92,13 +95,17 @@ create_incident_time_network <- function(data_sample) {
     select(EVENT_TYPE, SEVERITY, AREA_NAME, time_of_day, day_of_week, season) %>%
     pivot_longer(cols = c(time_of_day, day_of_week, season), names_to = "time_factor", values_to = "time_value") %>%
     select(EVENT_TYPE, time_value)
-
+    
+  # Rest of the function remains the same
   incident_time_nodes <- data.frame(
     name = unique(c(incident_time_edges$EVENT_TYPE, incident_time_edges$time_value)),
-    type = c(rep(TRUE, length(unique(incident_time_edges$EVENT_TYPE))), rep(FALSE, length(unique(incident_time_edges$time_value))))
+    type = c(rep(TRUE, length(unique(incident_time_edges$EVENT_TYPE))), 
+             rep(FALSE, length(unique(incident_time_edges$time_value))))
   )
-
-  incident_time_graph <- graph_from_data_frame(d = incident_time_edges, vertices = incident_time_nodes, directed = FALSE)
+  
+  incident_time_graph <- graph_from_data_frame(d = incident_time_edges, 
+                                             vertices = incident_time_nodes, 
+                                             directed = FALSE)
   return(incident_time_graph)
 }
 
@@ -140,14 +147,16 @@ time_values <- degree_data %>%
 time_values <- time_values %>%
   arrange(desc(in_degree))
 
-ggplot(time_values, aes(x = reorder(node, -in_degree), y = in_degree)) +
+ggplot(time_values, aes(x = reorder(node, in_degree), y = in_degree)) +
   geom_bar(stat = "identity", fill = "blue") +
-  labs(title = "All Event occurences time distribution", x = "Node", y = "In-Degree") +
+  labs(title = "All Event occurrences time distribution", x = "Node", y = "In-Degree") +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  coord_flip() 
 ```
 
 # Create a plot for each event type, using the entire dataset 2018-2023
+
 ```{r}
 #| label: fig-graph2
 #| fig-width: 13
@@ -155,36 +164,48 @@ ggplot(time_values, aes(x = reorder(node, -in_degree), y = in_degree)) +
 event_types <- unique(road_data$EVENT_TYPE)
 years <- 2018:2023
 
-# Create a combined data frame for all event types and years
-combined_data <- data.frame()
-
-for (event_type in event_types) {
-  for (year in years) {
+# Combined data frame for all event types and years
+combined_data <- do.call(rbind, lapply(event_types, function(event_type) {
+  do.call(rbind, lapply(years, function(year) {
     event_data <- road_data %>%
       filter(EVENT_TYPE == event_type, year(CREATED) == year)
     
     event_network <- create_incident_time_network(event_data)
     
-    event_in_degrees <- degree(event_network, mode = "in")
-    
     event_degree_data <- data.frame(
       node = V(event_network)$name,
-      in_degree = event_in_degrees,
+      in_degree = degree(event_network, mode = "in"),
       event_type = event_type,
       year = year
     )
     
-    event_time_values <- event_degree_data %>%
+    event_degree_data %>%
       filter(grepl("^[A-Z][a-z]", node))
-    
-    combined_data <- rbind(combined_data, event_time_values)
-  }
-}
+  }))
+}))
 
-ggplot(combined_data, aes(x = reorder(node, -in_degree), y = in_degree, fill = factor(year))) +
+combined_data <- combined_data %>%
+  group_by(event_type, node) %>%
+  mutate(node_total = sum(in_degree)) %>%
+  ungroup() %>%
+  group_by(event_type) %>%
+  mutate(total_degree = sum(in_degree)) %>%
+  ungroup()
+
+ggplot(combined_data, 
+       aes(x = reorder_within(node, desc(node_total), event_type),
+           y = in_degree, 
+           fill = factor(year))) +
   geom_bar(stat = "identity", position = "dodge") +
-  labs(title = "In-Degree Distribution by Event Type and Year", x = "Node", y = "In-Degree", fill = "Year") +
+  labs(title = "In-Degree Distribution by Event Type and Year", 
+       x = "Node", 
+       y = "In-Degree", 
+       fill = "Year") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  facet_wrap(~ event_type, scales = "free_x")
+  facet_wrap(~ reorder(event_type, desc(total_degree)), 
+             scales = "free_x",
+             nrow = 2,
+             ncol = 3) +
+  scale_x_reordered()
 ```
