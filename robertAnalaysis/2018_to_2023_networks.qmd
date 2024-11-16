@@ -241,3 +241,200 @@ ggplot(region_events,
   )
 region_events
 ```
+
+# Relationship between maintenance/construction and incidents
+Data Preparation:
+
+- Considered highways only
+- Categorized events into "maintenance" (CONSTRUCTION/MAINTENANCE), "incident" (INCIDENT/COLLISION), or "other"
+- Counted events by road and category
+- Transformed data into wide format with maintenance and incident counts per road
+
+Network Creation:
+
+Created an adjacency matrix using distance between roads based on their maintenance/incident patterns
+Converted to an igraph network where:
+
+- Nodes represent roads
+- Edges connect roads with similar incident patterns (The code creates a distance-based network where roads are connected if they have similar numbers of maintenance events and incidents, using Euclidean distance to measure this similarity.)
+- Edge weight determined by similarity threshold (mean distance)
+
+```{r}
+#| label: fig-graph4
+#| fig-width: 13
+#| fig-height: 10
+
+road_network <- road_data %>%
+   filter(grepl("^(Hwy|Highway|Trans-Canada|BC-)", ROAD_NAME)) %>%
+  mutate(
+    event_category = case_when(
+      EVENT_TYPE %in% c("CONSTRUCTION", "MAINTENANCE") ~ "maintenance",
+      EVENT_TYPE %in% c("INCIDENT", "COLLISION") ~ "incident",
+      TRUE ~ "other"
+    )
+  ) %>%
+  # Count events by road and category
+  group_by(ROAD_NAME, event_category) %>%
+  summarise(
+    count = n(),
+    .groups = 'drop'
+  ) %>%
+  # Pivot to wide format
+  pivot_wider(
+    names_from = event_category,
+    values_from = count,
+    values_fill = 0
+  )
+
+# Create adjacency matrix based on similar incident patterns
+road_matrix <- road_network %>%
+  select(maintenance, incident) %>%
+  dist() %>%
+  as.matrix()
+
+g <- graph_from_adjacency_matrix(
+  (road_matrix < mean(road_matrix)) * 1,
+  mode = "undirected",
+  weighted = TRUE
+)
+
+g <- simplify(g, remove.loops = TRUE)
+
+# Node attributes
+V(g)$name <- road_network$ROAD_NAME
+V(g)$maintenance <- road_network$maintenance
+V(g)$incidents <- road_network$incident
+V(g)$ratio <- road_network$incident / (road_network$maintenance + 1)
+
+correlation <- cor.test(road_network$maintenance, road_network$incident)
+
+layout <- layout_on_grid(g)
+
+incident_sizes <- log1p(V(g)$incidents)
+norm_sizes <- 3 + (incident_sizes - min(incident_sizes)) / 
+              (max(incident_sizes) - min(incident_sizes)) * 15
+
+plot(g,
+     layout = layout,
+     vertex.size = norm_sizes,
+     vertex.color = ifelse(V(g)$ratio > median(V(g)$ratio), 
+                          adjustcolor("red", alpha=0.7), 
+                          adjustcolor("green", alpha=0.7)),
+     vertex.label.cex = 0.7,
+     vertex.label.dist = 0.8,
+     vertex.label.color = "black",
+     vertex.frame.color = "gray50",
+     edge.color = adjustcolor("gray40", alpha=0.2),
+     edge.width = 0.5,
+     main = paste("Road Network: Maintenance vs Incidents\n",
+                 "Correlation =", round(correlation$estimate, 3)))
+legend("bottomright", 
+       legend=c("High incident/maintenance ratio", "Low incident/maintenance ratio"),
+       fill=c(adjustcolor("red", alpha=0.7), adjustcolor("green", alpha=0.7)),
+       cex=0.6,
+       bty="n")
+
+# Print statistical summary
+summary_stats <- road_network %>%
+  summarise(
+    correlation = cor(maintenance, incident),
+    roads_with_high_maintenance = sum(maintenance > mean(maintenance)),
+    roads_with_high_incidents = sum(incident > mean(incident))
+  )
+
+print(summary_stats)
+
+# Ordered list of roads and weights
+road_weights <- data.frame(
+  road = V(g)$name,
+  incidents = V(g)$incidents,
+  maintenance = V(g)$maintenance,
+  ratio = V(g)$ratio
+) %>%
+  arrange(desc(ratio)) %>%
+  mutate(
+    formatted_output = sprintf(
+      "%s: %.2f incidents per maintenance (incidents: %d, maintenance: %d)",
+      road,
+      ratio,
+      incidents,
+      maintenance
+    )
+  )
+
+cat("\nRoads ordered by incident/maintenance ratio:\n")
+cat(paste0(seq_along(road_weights$formatted_output), ". ", 
+          road_weights$formatted_output, 
+          collapse = "\n"))
+```
+
+
+The high correlation suggests that maintenance work is reactive - roads with more incidents tend to receive more maintenance, rather than maintenance preventing incidents.
+
+- Problem roads get more maintenance attention
+- High-traffic roads naturally have both more incidents and require more maintenance
+- Maintenance work itself may temporarily increase the likelihood of incidents
+
+
+```{r}
+#| label: fig-graph5
+#| fig-width: 16
+#| fig-height: 8
+
+communities <- cluster_louvain(g)
+V(g)$community <- membership(communities)
+n_communities <- length(unique(V(g)$community))
+community_colors <- rainbow(n_communities, alpha=0.6)
+
+par(mfrow=c(1,2), mar=c(2,2,3,2))
+
+layout_grid <- layout_on_grid(g)
+plot(g,
+     layout = layout_grid,
+     vertex.size = norm_sizes,
+     vertex.color = community_colors[V(g)$community],
+     vertex.label.cex = 0.6,
+     vertex.label.dist = 1.2,
+     vertex.label.color = "black",
+     vertex.frame.color = "gray50",
+     edge.color = adjustcolor("gray40", alpha=0.2),
+     edge.width = 0.5,
+     main = "Grid Layout\nBC Highway Communities")
+
+layout_fr <- layout_with_fr(g, niter=500, grid="nogrid")
+plot(g,
+     layout = layout_fr,
+     vertex.size = norm_sizes,
+     vertex.color = community_colors[V(g)$community],
+     vertex.label.cex = 0.6,
+     vertex.label.dist = 1.2,
+     vertex.label.color = "black",
+     vertex.frame.color = "gray50",
+     edge.color = adjustcolor("gray40", alpha=0.2),
+     edge.width = 0.5,
+     main = "Fruchterman-Reingold Layout\nBC Highway Communities")
+
+par(mfrow=c(1,1), mar=c(5,4,4,2)+0.1)
+
+community_sizes <- table(membership(communities))
+
+cluster_stats <- data.frame(
+  community = as.numeric(names(community_sizes)),
+  cluster_size = as.numeric(community_sizes),
+  avg_incidents = tapply(V(g)$incidents, V(g)$community, mean),
+  avg_maintenance = tapply(V(g)$maintenance, V(g)$community, mean)
+)
+
+cluster_stats <- cluster_stats[order(-cluster_stats$cluster_size), ]
+
+cat("\nCluster Summary:\n")
+for(i in 1:nrow(cluster_stats)) {
+  community_id <- cluster_stats$community[i]
+  cat(sprintf("\nCluster %d (size: %d):\n", 
+              community_id, 
+              cluster_stats$cluster_size[i]))
+  cat("Members:", paste(V(g)$name[V(g)$community == community_id], collapse=", "), "\n")
+  cat(sprintf("Average incidents: %.1f\n", cluster_stats$avg_incidents[i]))
+  cat(sprintf("Average maintenance: %.1f\n", cluster_stats$avg_maintenance[i]))
+}
+```
