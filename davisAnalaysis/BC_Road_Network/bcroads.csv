@@ -1,0 +1,138 @@
+from,to
+Vancouver,Burnaby
+Vancouver,Richmond
+Vancouver,North Vancouver
+North Vancouver,Horseshoe Bay
+Horseshoe Bay,Squamish
+Squamish,Whistler
+Whistler,Pemberton
+Pemberton,Lilooet
+Lilooet,Lytton
+Lilooet,Cache Creek
+Lytton,Spences Bridge
+Spences Bridge,Cache Creek
+Cache Creek,100 Mile House
+100 Mile House,Williams Lake
+Williams Lake,Alexis Creek
+Alexis Creek,Tatla Lake
+Tatla Lake,Anahim Lake
+Anahim Lake,Bella Coola
+Williams Lake,Quesnel
+Quesnel,Wells
+Quesnel,Prince George
+Cache Creek,Savona
+Savona,Kamloops
+Kamloops,Falkland
+Falkland,Vernon
+Vernon,Enderby
+Vernon,Kelowna
+Kelowna,Merritt
+Kelowna,Penticton
+Penticton,Oliver
+Oliver,Osoyoos
+Osoyoos,Keremeos
+Penticton,Keremeos
+Keremeos,Princeton
+Princeton,Hope
+Princeton,Merritt
+Merritt,Hope
+Merritt,Kamloops
+Merritt,Spences Bridge
+Kamloops,Salmon Arm
+Salmon Arm,Sicamous
+Sicamous,Revelstoke
+Revelstoke,Golden
+Golden,Invermere
+Invermere,Cranbrook
+Cranbrook,Fernie
+Fernie,Sparwood
+Cranbrook,Creston
+Creston,Salmo
+Salmo,Nelson
+Creston,Nelson
+Nelson,Shoreacres
+Shoreacres,Castlegar
+Salmo,Castlegar
+Shoreacres,Slocan
+Slocan,New Denver
+New Denver,Nakusp
+Nakusp,Lumby
+Lumby,Vernon
+Nakusp,Revelstoke
+Castlegar,Grand Forks
+Grand Forks,Midway
+Midway,Rock Creek
+Rock Creek,Kelowna
+Rock Creek,Osoyoos
+Prince George,Vanderhoof
+Vanderhoof,Fort St. James
+Vanderhoof,Burns Lake
+Burns Lake,Smithers
+Smithers,Kitwanga
+Kitwanga,Terrace
+Terrace,Kitimat
+Terrace,Prince Rupert
+Kitwanga,Stewart
+Stewart,Dease Lake
+Dease Lake,Watson Lake
+Watson Lake,Fort Nelson
+Fort Nelson,Pink Mountain
+Pink Mountain,Fort St. John
+Fort St. John,Dawson Creek
+Fort St. John,Hudson's Hope
+Hudson's Hope,Chetwynd
+Chetwynd,Dawson Creek
+Dawson Creek,Tumbler Ridge
+Tumbler Ridge,Chetwynd
+Horseshoe Bay,Nanaimo
+Tsawwassen,Nanaimo
+Tsawwassen,Sidney
+Victoria,Sidney
+Victoria,Sooke
+Port Renfrew,Sooke
+Port Renfrew,Lake Cowichan
+Lake Cowichan,Duncan
+Duncan,Victoria
+Duncan,Nanaimo
+Nanaimo,Parksville
+Parksville,Port Alberni
+Port Alberni,Tofino
+Parksville,Courtenay
+Courtenay,Campbell River
+Campbell River,Gold River
+Campbell River,Port Hardy
+Kamloops,Barriere
+Barriere,Little Fort
+Little Fort,100 Mile House
+Little Fort,Clearwater
+Clearwater,Valmount
+Valmount,McBride
+McBride,Prince George
+Prince George,Mackenzie Junction
+Mackenzie Junction,Mackenzie
+Mackenzie Junction,Chetwynd
+Salmo,Trail
+Castlegar,Trail
+Grand Forks,Trail
+Hope,Chilliwack
+Chilliwack,Abbotsford
+Abbotsford,Mission
+Mission,Maple Ridge
+Maple Ridge,Coquitlam
+Coquitlam,Burnaby
+Coquitlam,Surrey
+Burnaby,Surrey
+Surrey,Langley
+Langley,Abbotsford
+Burnaby,North Vancouver
+Burnaby,Richmond
+Richmond,Delta
+Delta,White Rock
+Surrey,White Rock
+Langley,White Rock
+Delta,Tsawwassen
+Horseshoe Bay,Powell River
+Courtenay,Powell River
+Prince Rupert,Masset
+Hope,Boston Bar
+Boston Bar,Lytton
