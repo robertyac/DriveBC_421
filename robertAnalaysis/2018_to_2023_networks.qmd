@@ -209,3 +209,35 @@ ggplot(combined_data,
              ncol = 3) +
   scale_x_reordered()
 ```
+
+# Region event distribution plot
+```{r}
+#| label: fig-graph3
+#| fig-width: 13
+#| fig-height: 10
+
+# region event distribution plot
+region_events <- road_data %>%
+  group_by(AREA_NAME, EVENT_TYPE) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  group_by(AREA_NAME) %>%
+  mutate(total_events = sum(count)) %>%
+  ungroup()
+
+ggplot(region_events, 
+       aes(x = count, 
+           y = reorder(AREA_NAME, total_events),
+           fill = EVENT_TYPE)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(title = "Event Distribution by Region (2018-2023)",
+       x = "Number of Events",
+       y = "Region",
+       fill = "Event Type") +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 8),
+    legend.position = "right",
+    plot.title = element_text(hjust = 0.5)
+  )
+region_events
+```
