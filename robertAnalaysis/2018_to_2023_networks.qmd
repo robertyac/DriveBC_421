@@ -12,15 +12,15 @@ editor: visual
 
 # Data Loading and Initial Cleaning
 
-## PLEASE NOTE: The data used in our repo is too big to upload to GitHub. We decided that it was best we .gitignore our data and have it on our local machines. 
-The data we used can be accessed through: (https://catalogue.data.gov.bc.ca/dataset/historical-drivebc-events)[] my analysis on this page used the years 2018 to 2023 and I renamed the files to the format `drivebceventshistXXXX` where XXXX represents the year of the csv.
+## PLEASE NOTE: The data used in our repo is too big to upload to GitHub. We decided that it was best we .gitignore our data and have it on our local machines.
+
+The data we used can be accessed through: [Acccess data here ](https://catalogue.data.gov.bc.ca/dataset/historical-drivebc-events) my analysis on this page used the years 2018 to 2023 and I renamed the files to the format `drivebceventshistXXXX` where XXXX represents the year of the csv.
 
 ```{r}
 suppressPackageStartupMessages(library(dplyr))
 suppressPackageStartupMessages(library(readr))
 suppressPackageStartupMessages(library(tidyr))
 suppressPackageStartupMessages(library(igraph))
-suppressPackageStartupMessages(library(caret))
 suppressPackageStartupMessages(library(stringr))
 suppressPackageStartupMessages(library(lubridate))
 suppressPackageStartupMessages(library(ggplot2))
@@ -70,6 +70,7 @@ nrow(road_data)
 ```
 
 # Bipartite network for incidents and time factors
+
 ```{r cache=TRUE}
 #| label: fig-graph1
 #| fig-width: 13
@@ -156,6 +157,7 @@ ggplot(time_values, aes(x = reorder(node, in_degree), y = in_degree)) +
 ```
 
 # Create a plot for each event type, using the entire dataset (2018-2023)
+
 ```{r}
 #| label: fig-graph2
 #| fig-width: 13
@@ -210,6 +212,7 @@ ggplot(combined_data,
 ```
 
 # Region event distribution plot
+
 ```{r}
 #| label: fig-graph3
 #| fig-width: 13
@@ -241,21 +244,21 @@ region_events
 ```
 
 # Relationship between maintenance/construction and incidents
+
 Data Preparation:
 
-- Considered highways only
-- Categorized events into "maintenance" (CONSTRUCTION/MAINTENANCE), "incident" (INCIDENT/COLLISION), or "other"
-- Counted events by road and category
-- Transformed data into wide format with maintenance and incident counts per road
+-   Considered highways only
+-   Categorized events into "maintenance" (CONSTRUCTION/MAINTENANCE), "incident" (INCIDENT/COLLISION), or "other"
+-   Counted events by road and category
+-   Transformed data into wide format with maintenance and incident counts per road
 
 Network Creation:
 
-Created an adjacency matrix using distance between roads based on their maintenance/incident patterns
-Converted to an igraph network where:
+Created an adjacency matrix using distance between roads based on their maintenance/incident patterns Converted to an igraph network where:
 
-- Nodes represent roads
-- Edges connect roads with similar incident patterns (The code creates a distance-based network where roads are connected if they have similar numbers of maintenance events and incidents, using Euclidean distance to measure this similarity.)
-- Edge weight determined by similarity threshold (mean distance)
+-   Nodes represent roads
+-   Edges connect roads with similar incident patterns (The code creates a distance-based network where roads are connected if they have similar numbers of maintenance events and incidents, using Euclidean distance to measure this similarity.)
+-   Edge weight determined by similarity threshold (mean distance)
 
 ```{r}
 #| label: fig-graph4
@@ -341,7 +344,7 @@ summary_stats <- road_network %>%
     roads_with_high_incidents = sum(incident > mean(incident))
   )
 
-print(summary_stats)
+summary_stats
 
 # Ordered list of roads and weights
 road_weights <- data.frame(
@@ -367,14 +370,14 @@ cat(paste0(seq_along(road_weights$formatted_output), ". ",
           collapse = "\n"))
 ```
 
-
 The high correlation suggests that maintenance work is reactive - roads with more incidents tend to receive more maintenance, rather than maintenance preventing incidents.
 
-- Problem roads get more maintenance attention
-- High-traffic roads naturally have both more incidents and require more maintenance
-- Maintenance work itself could potentially increase the likelihood of incidents
+-   Problem roads get more maintenance attention
+-   High-traffic roads naturally have both more incidents and require more maintenance
+-   Maintenance work itself could potentially increase the likelihood of incidents
 
 # Community detection based on maintenance and incident patterns
+
 ```{r}
 #| label: fig-graph5
 #| fig-width: 16
