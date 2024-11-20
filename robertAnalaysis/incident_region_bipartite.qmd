@@ -22,7 +22,7 @@ suppressPackageStartupMessages(library(stringr))
 ```
 
 ```{r}
-# Function to standardize attribute names and handle event type variations
+# Function to standardize attribute names and handle event type variations across different years
 standardize_name <- function(x) {
   x <- x %>%
     tolower() %>%
@@ -58,10 +58,10 @@ load_and_clean_data <- function(file_path) {
                                                   "ymd HM", "mdy HM", "dmy HM",
                                                   "ymd", "mdy", "dmy"))
     ) %>%
-    filter(!is.na(EVENT_TYPE)) %>%        # Remove NA event types
-    filter(!EVENT_TYPE %in% c("planned"))  # Additional removal if needed
+    filter(!is.na(EVENT_TYPE)) %>%        
+    filter(!EVENT_TYPE %in% c("planned"))
   
-  # Select only the columns we need
+  # the columns we need
   data <- data %>%
     select(EVENT_TYPE, AREA_NAME, SEVERITY, START_DATETIME) %>%
     drop_na(START_DATETIME)
@@ -74,11 +74,7 @@ load_and_clean_data <- function(file_path) {
 # all the years apply the cleaning functions
 data_files <- list.files("../data", pattern = "drivebceventshist.*\\.csv", full.names = TRUE)
 all_data <- lapply(data_files, load_and_clean_data)
-
-# Combine all data into a single dataframe
 drivebc_data <- bind_rows(all_data)
-
-# Convert columns to appropriate data types
 drivebc_data <- drivebc_data %>%
   mutate(
     EVENT_TYPE = as.factor(EVENT_TYPE),
@@ -91,6 +87,8 @@ head(drivebc_data)
 ```
 
 # Time/Event Bipartite Graphs
+
+These graphs show the relationship between the areas and the types of events that occurred in each year. The areas are represented by circles, and the events are represented by squares. An edge between an area and an event indicates that an event of that TYPE occurred in that area. This is useful as it shows what events have occurred in each area over time which is good for the initial analysis of the data as we can see if all events are occurring in all areas.
 
 ```{r}
 create_bipartite_graph <- function(year_data, year) {
@@ -111,7 +109,6 @@ create_bipartite_graph <- function(year_data, year) {
 
   g <- graph_from_data_frame(d = edges, vertices = nodes, directed = FALSE)
   
-  # vertex attributes
   V(g)$color <- ifelse(V(g)$type, "lightblue", "lightgreen")
   V(g)$shape <- ifelse(V(g)$type, "circle", "square")
   V(g)$size <- 4 
