@@ -12,6 +12,9 @@ editor: visual
 
 # Data Loading and Initial Cleaning
 
+## PLEASE NOTE: The data used in our repo is too big to upload to GitHub. We decided that it was best we .gitignore our data and have it on our local machines. 
+The data we used can be accessed through: (https://catalogue.data.gov.bc.ca/dataset/historical-drivebc-events)[] my analysis on this page used the years 2018 to 2023 and I renamed the files to the format `drivebceventshistXXXX` where XXXX represents the year of the csv.
+
 ```{r}
 suppressPackageStartupMessages(library(dplyr))
 suppressPackageStartupMessages(library(readr))
@@ -31,7 +34,6 @@ data_files <- list.files(path = "../data/",
 
 data_files <- data_files[grep("(2018|2019|2020|2021|2022|2023)", data_files)]
 
-# Define column types
 col_types <- cols(
   EVENT_TYPE = col_character(),
   EVENT_SUBTYPE = col_character(),
@@ -57,7 +59,7 @@ road_data <- bind_rows(
         HEAD_LONGITUDE, 
         ROAD_NAME
       ) %>%
-  mutate(CREATED = as.POSIXct(CREATED))
+  mutate(CREATED = as.POSIXct(CREATED)) # Convert to POSIXct for date-time operations
   })
 )
 ```
@@ -68,12 +70,12 @@ nrow(road_data)
 ```
 
 # Bipartite network for incidents and time factors
-
 ```{r cache=TRUE}
 #| label: fig-graph1
 #| fig-width: 13
 #| fig-height: 10
 
+# Function for the creation of a bipartite network of events and time factors
 create_incident_time_network <- function(data_sample) {
   incident_time_edges <- data_sample %>%
     mutate(
@@ -96,7 +98,6 @@ create_incident_time_network <- function(data_sample) {
     pivot_longer(cols = c(time_of_day, day_of_week, season), names_to = "time_factor", values_to = "time_value") %>%
     select(EVENT_TYPE, time_value)
     
-  # Rest of the function remains the same
   incident_time_nodes <- data.frame(
     name = unique(c(incident_time_edges$EVENT_TYPE, incident_time_edges$time_value)),
     type = c(rep(TRUE, length(unique(incident_time_edges$EVENT_TYPE))), 
@@ -109,8 +110,8 @@ create_incident_time_network <- function(data_sample) {
   return(incident_time_graph)
 }
 
-# Stratified sampling
-set.seed(123) # For reproducibility
+# Stratified sampling so we get a proportionate amount of events
+set.seed(123) # For reproducibility of the sample
 road_data_sample <- road_data %>%
   group_by(EVENT_TYPE) %>%
   sample_frac(0.001) %>% # .001 is about 1000 sample size for our data
@@ -118,7 +119,6 @@ road_data_sample <- road_data %>%
 
 incident_time_network <- create_incident_time_network(road_data_sample)
 
-# Determine the layout
 layout <- layout_as_bipartite(incident_time_network)
 
 plot(
@@ -155,8 +155,7 @@ ggplot(time_values, aes(x = reorder(node, in_degree), y = in_degree)) +
   coord_flip() 
 ```
 
-# Create a plot for each event type, using the entire dataset 2018-2023
-
+# Create a plot for each event type, using the entire dataset (2018-2023)
 ```{r}
 #| label: fig-graph2
 #| fig-width: 13
@@ -216,7 +215,6 @@ ggplot(combined_data,
 #| fig-width: 13
 #| fig-height: 10
 
-# region event distribution plot
 region_events <- road_data %>%
   group_by(AREA_NAME, EVENT_TYPE) %>%
   summarise(count = n(), .groups = 'drop') %>%
@@ -264,6 +262,7 @@ Converted to an igraph network where:
 #| fig-width: 13
 #| fig-height: 10
 
+# filter for highways only
 road_network <- road_data %>%
    filter(grepl("^(Hwy|Highway|Trans-Canada|BC-)", ROAD_NAME)) %>%
   mutate(
@@ -279,7 +278,7 @@ road_network <- road_data %>%
     count = n(),
     .groups = 'drop'
   ) %>%
-  # Pivot to wide format
+  # Pivot to wide format to get maintenance and incident counts per road
   pivot_wider(
     names_from = event_category,
     values_from = count,
@@ -298,9 +297,9 @@ g <- graph_from_adjacency_matrix(
   weighted = TRUE
 )
 
-g <- simplify(g, remove.loops = TRUE)
 
-# Node attributes
+g <- simplify(g, remove.loops = TRUE) # need to remove self-loops as they are not meaningful
+
 V(g)$name <- road_network$ROAD_NAME
 V(g)$maintenance <- road_network$maintenance
 V(g)$incidents <- road_network$incident
@@ -334,7 +333,7 @@ legend("bottomright",
        cex=0.6,
        bty="n")
 
-# Print statistical summary
+# statistical summary 
 summary_stats <- road_network %>%
   summarise(
     correlation = cor(maintenance, incident),
@@ -373,9 +372,9 @@ The high correlation suggests that maintenance work is reactive - roads with mor
 
 - Problem roads get more maintenance attention
 - High-traffic roads naturally have both more incidents and require more maintenance
-- Maintenance work itself may temporarily increase the likelihood of incidents
+- Maintenance work itself could potentially increase the likelihood of incidents
 
-
+# Community detection based on maintenance and incident patterns
 ```{r}
 #| label: fig-graph5
 #| fig-width: 16
