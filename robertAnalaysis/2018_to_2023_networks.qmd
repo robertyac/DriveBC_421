@@ -155,6 +155,8 @@ ggplot(time_values, aes(x = reorder(node, in_degree), y = in_degree)) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   coord_flip() 
+
+time_values
 ```
 
 # Create a plot for each event type, using the entire dataset (2018-2023)
